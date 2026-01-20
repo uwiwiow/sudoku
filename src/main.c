@@ -33,6 +33,13 @@ void debugText(const char *text) {
     buffer[bufferIndex] = '\0';
 }
 
+void updateSelectedRec(Rectangle *vSelectedArea, Rectangle *hSelectedArea, Rectangle *boxSelectedArea, Vector2i selector, int cellSize) {
+    vSelectedArea->x = (float) (selector.x * cellSize);
+    hSelectedArea->y = (float)(selector.y * cellSize + cellSize);
+    boxSelectedArea->x = (float)(selector.x / 3 * (int) boxSelectedArea->width );
+    boxSelectedArea->y = (float)(selector.y / 3 * (int) boxSelectedArea->width + cellSize);
+}
+
 int main(int argc, char **argv) {
 
     buffer = (char *) malloc(MAX_BUFFER * sizeof(char));
@@ -49,8 +56,8 @@ int main(int argc, char **argv) {
 
     constexpr int gridWidth = 720;
     constexpr int gridHeight = 720;
-    const Rectangle gridRect = {0, 80, gridWidth, gridHeight};
     constexpr int cellSize = gridWidth / 9;
+    const Rectangle gridRect = {0, cellSize, gridWidth, gridHeight};
 
     const Color backgroundColor = {32, 33, 36, 255};
     const Color selectedLineColor = {42, 91, 176, 255};
@@ -59,6 +66,10 @@ int main(int argc, char **argv) {
     const auto boxColor = GRAY;
     const auto lineColor = DARKGRAY;
     const auto numberColor = WHITE;
+
+    Rectangle hSelectedArea = {0, 0 + cellSize, gridWidth, cellSize};
+    Rectangle vSelectedArea = {0, 0  + cellSize, cellSize, gridHeight};
+    Rectangle boxSelectedArea = {0, 0  + cellSize, cellSize * 3, cellSize * 3};
 
 
     srand((unsigned int)time(nullptr));
@@ -74,7 +85,6 @@ int main(int argc, char **argv) {
 
 
     SetTraceLogLevel(LOG_WARNING);
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "Sudoku");
     InitAudioDevice();
     SetTargetFPS(200);
@@ -112,6 +122,8 @@ int main(int argc, char **argv) {
                 selector.x = (int) mousePos.x / ( cellSize);
                 selector.y = (int) (mousePos.y - 80) / ( cellSize);
 
+                updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize);
+
                 debugText(TextFormat("%d %d", selector.x, selector.y));
 
             }
@@ -133,10 +145,26 @@ int main(int argc, char **argv) {
 
 
         const int step = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ? 3 : 1;
-        if (IsKeyPressed(KEY_UP)) {     if (selector.y > -1 + step) selector.y -= step; debugText(TextFormat("%d %d", selector.x, selector.y));}
-        if (IsKeyPressed(KEY_DOWN)) {   if (selector.y < 9 - step)  selector.y += step; debugText(TextFormat("%d %d", selector.x, selector.y));}
-        if (IsKeyPressed(KEY_LEFT)) {   if (selector.x > -1 + step) selector.x -= step; debugText(TextFormat("%d %d", selector.x, selector.y));}
-        if (IsKeyPressed(KEY_RIGHT)) {  if (selector.x < 9 - step)  selector.x += step; debugText(TextFormat("%d %d", selector.x, selector.y));}
+        if (IsKeyPressed(KEY_UP)) {
+            if (selector.y > -1 + step) selector.y -= step;
+            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize);
+            debugText(TextFormat("%d %d", selector.x, selector.y));
+        }
+        if (IsKeyPressed(KEY_DOWN)) {
+            if (selector.y < 9 - step)  selector.y += step;
+            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize);
+            debugText(TextFormat("%d %d", selector.x, selector.y));
+        }
+        if (IsKeyPressed(KEY_LEFT)) {
+            if (selector.x > -1 + step) selector.x -= step;
+            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize);
+            debugText(TextFormat("%d %d", selector.x, selector.y));
+        }
+        if (IsKeyPressed(KEY_RIGHT)) {
+            if (selector.x < 9 - step)  selector.x += step;
+            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize);
+            debugText(TextFormat("%d %d", selector.x, selector.y));
+        }
 
 
         int keyPressed = GetKeyPressed();
@@ -160,9 +188,29 @@ int main(int argc, char **argv) {
 
         // selector
         if (selected) {
+            DrawRectangleRec(hSelectedArea, selectedAreaColor);
+            DrawRectangleRec(vSelectedArea, selectedAreaColor);
+            DrawRectangleRec(boxSelectedArea, selectedAreaColor);
+
             DrawRectangleRec((Rectangle){(float) selector.x * 80, (float) (selector.y + 1) * 80, cellSize, cellSize}, selectedColor);
             DrawRectangleLinesEx((Rectangle){(float) selector.x * 80, (float) (selector.y + 1) * 80, cellSize, cellSize}, 4, selectedLineColor);
         }
+
+
+        // numbers
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                if (sudoku[i][j] != 0) {
+                    if (selected && sudoku[i][j] == sudoku[selector.y][selector.x]) {
+                        DrawRectangleRec((Rectangle){(float) j * 80, (float) (i + 1) * 80, cellSize, cellSize}, selectedColor);
+                        DrawRectangleLinesEx((Rectangle){(float) j * 80, (float) (i + 1) * 80, cellSize, cellSize}, 4, selectedLineColor);
+                    }
+                    const Vector2 textPos = {(float)j * (float)cellSize + (float)cellSize/3, (float)i * (float)cellSize + (float)cellSize/4 + 80};
+                    DrawTextEx(font, TextFormat("%d", sudoku[i][j]), textPos, 40, 0, numberColor);
+                }
+            }
+        }
+
 
         // lines
         for (int i = 0; i < 10; i++) {
@@ -174,21 +222,13 @@ int main(int argc, char **argv) {
         }
 
 
-        // numbers
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                if (sudoku[i][j] != 0) {
-                    const Vector2 textPos = {(float)j * (float)cellSize + (float)cellSize/3, (float)i * (float)cellSize + (float)cellSize/4 + 80};
-                    DrawTextEx(font, TextFormat("%d", sudoku[i][j]), textPos, 40, 0, numberColor);
-                }
-            }
-        }
-
-
         // lifes
         for (int i = 0; i < 3; i++) DrawTexture(heart, 10 + i * 70, 10, lifes <= i ? GRAY : RED);
         if (lifes <= 0) DrawText("   PRESS R\nTO RESTART", (screenWidth / 2) - (MeasureText("   PRESS R\nTO RESTART", 60) / 2), screenHeight / 2 - 60, 60, GOLD);
 
+
+        // numbers
+        DrawTextEx(font, TextFormat("N = %d", k), (Vector2) {screenWidth - MeasureText(TextFormat("N = %d", k), 60) - 10, 10}, 60, 0, WHITE);
 
         if (debug) DrawText(buffer, 10, 10, 20, DARKGREEN);
 
