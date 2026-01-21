@@ -13,4 +13,4 @@ file(COPY assets DESTINATION .)
 
 add_executable(sudoku ${SRC})
 
-target_link_libraries(sudoku raylib m)
+target_link_libraries(sudoku raylib)
