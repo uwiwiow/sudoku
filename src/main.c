@@ -94,6 +94,8 @@ int main(int argc, char **argv) {
     UnloadImage(_heart);
     int lifes = 3;
 
+    Texture2D pen = LoadTexture("assets/pen.png");
+
 
     Vector2i selector = {0, 0};
     bool selected = false;
@@ -262,6 +264,8 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 3; i++) DrawTexture(heart, 10 + i * 70, 10, lifes <= i ? GRAY : RED);
         if (lifes <= 0) DrawTextEx(font, "   PRESS R\nTO RESTART", (Vector2) {  (float) screenWidth / 2 - MeasureTextEx(font, "   PRESS R\nTO RESTART", 60, 0).x / 2 , (float) screenHeight / 2 - 60}, 60, 0, GOLD);
 
+        if (annotationMode) DrawTexture(pen, 220, 10, WHITE);
+
         // numbers
         DrawTextEx(font, TextFormat("N = %d", k), (Vector2) {(float) screenWidth - (float) MeasureText(TextFormat("N = %d", k), 60) - 10, 10}, 60, 0, WHITE);
 
@@ -274,6 +278,7 @@ int main(int argc, char **argv) {
     UnloadMusicStream(music);
     UnloadFont(font);
     UnloadTexture(heart);
+    UnloadTexture(pen);
     CloseAudioDevice();
     CloseWindow();
 
