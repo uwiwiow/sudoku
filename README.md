@@ -2,6 +2,8 @@
 
 Made with raylib
 
+Music by Abstraction
+
 | New game | Number highlight |
 | :---: | :---: |
 | <img width="720" height="800" src="https://github.com/user-attachments/assets/2743d7b0-a627-49d4-8d6e-1a13fa331bc7" /> | <img width="720" height="800" src="https://github.com/user-attachments/assets/d680819f-f44d-4cdd-b81d-16590f97710d" /> |
