@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     const Color selectedAreaColor = {71, 71, 71, 255};
     const auto boxColor = GRAY;
     const auto lineColor = DARKGRAY;
-    const auto numberColor = WHITE;
+    const auto numberColor = GRAY;
     const Color numberAnnotationColor = { 100, 100, 100, 255 };
 
     Rectangle hSelectedArea = {gridRect.x, gridRect.y, gridRect.width, (float) cellSize};
@@ -94,11 +94,21 @@ int main(int argc, char **argv) {
     UnloadImage(_heart);
     int lifes = 3;
 
-    Texture2D pen = LoadTexture("assets/pen.png");
+    const Texture2D pen = LoadTexture("assets/pen.png");
+
+    Image _help = LoadImage("assets/help.png");
+    ImageResize(&_help, 60, 60);
+    const Texture2D helpTexture = LoadTextureFromImage(_help);
+    UnloadImage(_help);
+    Rectangle helpRect = {(float) screenWidth - 70, 10, 60, 60};
 
 
     Vector2i selector = {0, 0};
     bool selected = false;
+
+
+    bool win = true;
+    bool help = false;
 
 
 
@@ -111,6 +121,8 @@ int main(int argc, char **argv) {
             screenWidth = GetScreenWidth();
             cellSize = screenHeight - cellSize < screenWidth ? (screenHeight - cellSize) / 9 : screenWidth / 9;
             gridRect = (Rectangle) {((float) screenWidth - gridRect.width) / 2, ((float) screenHeight - (float) cellSize - gridRect.height) / 2 + (float) cellSize, (float) cellSize * 9, (float) cellSize * 9};
+
+            helpRect.x = (float) screenWidth - 70;
 
             hSelectedArea.width = gridRect.width;
             hSelectedArea.height = (float) cellSize;
@@ -138,10 +150,15 @@ int main(int argc, char **argv) {
                 updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
 
                 debugText(TextFormat("%d %d", selector.x, selector.y));
-
             }
+
+            if (CheckCollisionPointRec(mousePos, helpRect)) help = !help;
+
         }
-        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) selected = false;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+            selected = false;
+            if (CheckCollisionPointRec(GetMousePosition(), helpRect)) help = !help;
+        }
 
 
         if (IsKeyPressed(KEY_R)) {
@@ -153,9 +170,38 @@ int main(int argc, char **argv) {
             removeDigits(sudoku, k);
         }
 
+        if (IsKeyPressed(KEY_C)) {
+
+            for (int y = 0; y < 9; y++) {
+                for (int x = 0; x < 9; x++) {
+                    if (sudoku[y][x] == 0) {
+                        sudokuNotes[y][x] = 0x1FFu;
+                    } else {
+                        sudokuNotes[y][x] = 0;
+                    }
+                }
+            }
+
+            for (int y = 0; y < 9; y++) {
+                for (int x = 0; x < 9; x++) {
+                    if (sudoku[y][x] != 0) {
+                        int value = sudoku[y][x];
+                        removeNotes(sudokuNotes, x, y, value);
+                    }
+                }
+            }
+        }
+
+        if (IsKeyPressed(KEY_B)) {
+            memset(sudokuNotes, 0, sizeof(sudokuNotes));
+        }
+
 
         if (IsKeyPressed(KEY_MINUS)) k--;
         if (IsKeyPressed(KEY_EQUAL)) k++;
+
+        if (k < 1) k = 1;
+        if (k > 81) k = 81;
 
 
         const int step = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ? 3 : 1;
@@ -221,6 +267,7 @@ int main(int argc, char **argv) {
 
 
         // numbers
+        win = true;
         for (int y = 0; y < 9; y++) {
             for (int x = 0; x < 9; x++) {
                 if (sudoku[y][x] != 0) {
@@ -232,6 +279,7 @@ int main(int argc, char **argv) {
                     DrawTextEx(font, TextFormat("%d", sudoku[y][x]), textPos, (float) cellSize / 2, 0, numberColor);
                 }
                 else {
+                    win = false;
 
                     // annotation numbers
                     uint16_t mask = sudokuNotes[y][x];
@@ -240,7 +288,7 @@ int main(int argc, char **argv) {
                         int n = bit + 1;
 
                         const Vector2 textPos = {(float)x * (float)cellSize + (float) ((n - 1) % 3 + 1) * (float) cellSize / 5 + gridRect.x, (float)y * (float)cellSize + (float) ((n - 1) / 3 + 1) * (float) cellSize / 5 + gridRect.y};
-                        DrawTextEx(font, TextFormat("%d", n), textPos, (float) cellSize / 4, 0, sudoku[selector.y][selector.x] == n ? numberColor : numberAnnotationColor);
+                        DrawTextEx(font, TextFormat("%d", n), textPos, (float) cellSize / 4, 0, sudoku[selector.y][selector.x] == n ? WHITE : numberAnnotationColor);
 
                         mask &= mask - 1;
                     }
@@ -262,12 +310,23 @@ int main(int argc, char **argv) {
 
         // lifes
         for (int i = 0; i < 3; i++) DrawTexture(heart, 10 + i * 70, 10, lifes <= i ? GRAY : RED);
-        if (lifes <= 0) DrawTextEx(font, "   PRESS R\nTO RESTART", (Vector2) {  (float) screenWidth / 2 - MeasureTextEx(font, "   PRESS R\nTO RESTART", 60, 0).x / 2 , (float) screenHeight / 2 - 60}, 60, 0, GOLD);
 
+        // pen
         if (annotationMode) DrawTexture(pen, 220, 10, WHITE);
 
         // numbers
-        DrawTextEx(font, TextFormat("N = %d", k), (Vector2) {(float) screenWidth - (float) MeasureText(TextFormat("N = %d", k), 60) - 10, 10}, 60, 0, WHITE);
+        DrawTextEx(font, TextFormat("N = %d", k), (Vector2) {(float) screenWidth - (float) MeasureText(TextFormat("N = %d", k), 60) - 70, 10}, 60, 0, WHITE);
+
+        // help
+        if (help) {
+            DrawRectangle(0, 0, screenWidth, screenHeight, (Color) {0, 0, 0, 128});
+            DrawTextEx(font, "Mouse\nLeft Click -> Select a cell\nRight Click -> Clear selection\n\nNavigation\nArrow Keys -> Move selection\nCtrl + Arrows -> Move faster (3 cells)\n\nNumbers\n1 - 9 -> Place number in selected cell\nA -> Toggle annotation mode\n  Normal mode: place a number\n  Annotation mode: place a number as an annotation\n\nGame Actions\nP -> Play / Pause music\nR -> Restart puzzle\nC -> Automatically calculate all notes\nB -> Clear all notes\n\nDifficulty\n- -> Decrease empty cells\n= -> Increase empty cells", (Vector2) {10, 10}, 32, 0, WHITE);
+        }
+        DrawTextureV(helpTexture, (Vector2) {helpRect.x, helpRect.y}, WHITE);
+
+        // game conditions
+        if (lifes <= 0) DrawTextEx(font, "   PRESS R\nTO RESTART", (Vector2) {  (float) screenWidth / 2 - MeasureTextEx(font, "   PRESS R\nTO RESTART", 60, 0).x / 2 , (float) screenHeight / 2 - 60}, 60, 0, RED);
+        if (win) DrawTextEx(font, "YOU WON", (Vector2) { (float) screenWidth / 2 - MeasureTextEx(font, "YOU WON", 100, 0).x / 2 , (float) screenHeight / 2}, 100, 0, GOLD);
 
         if (debug) DrawText(buffer, 10, 10, 20, DARKGREEN);
 
@@ -279,6 +338,7 @@ int main(int argc, char **argv) {
     UnloadFont(font);
     UnloadTexture(heart);
     UnloadTexture(pen);
+    UnloadTexture(helpTexture);
     CloseAudioDevice();
     CloseWindow();
 
