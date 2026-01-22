@@ -5,33 +5,19 @@
 
 #include "generator.h"
 
-#define debug 0
-
-constexpr int MAX_BUFFER = 128;
+#include "debug.h"
 char *buffer = nullptr;
 int bufferIndex = 0;
+
+#include "annotations.h"
+#include <stdint.h>
+uint16_t sudokuNotes[9][9];
 
 typedef struct Vector2i {
     int x;                // Vector x component
     int y;                // Vector y component
 } Vector2i;
 
-void debugText(const char *text) {
-    int len = (int)strlen(text);
-
-    if (bufferIndex + len + 2 >= MAX_BUFFER) {
-        bufferIndex = 0;
-        buffer[0] = '\0';
-    }
-
-    if (bufferIndex != 0) {
-        buffer[bufferIndex++] = '\n';
-    }
-
-    memcpy(buffer + bufferIndex, text, len);
-    bufferIndex += len;
-    buffer[bufferIndex] = '\0';
-}
 
 void updateSelectedRec(Rectangle *vSelectedArea, Rectangle *hSelectedArea, Rectangle *boxSelectedArea, Vector2i selector, int cellSize, Rectangle gridRect) {
     vSelectedArea->x = (float) (selector.x * cellSize + (int) gridRect.x);
@@ -66,6 +52,7 @@ int main(int argc, char **argv) {
     const auto boxColor = GRAY;
     const auto lineColor = DARKGRAY;
     const auto numberColor = WHITE;
+    const Color numberAnnotationColor = { 100, 100, 100, 255 };
 
     Rectangle hSelectedArea = {gridRect.x, gridRect.y, gridRect.width, (float) cellSize};
     Rectangle vSelectedArea = {gridRect.x, gridRect.y, (float) cellSize, gridRect.height};
@@ -82,6 +69,7 @@ int main(int argc, char **argv) {
     memcpy(grid, _grid, sizeof(int[N][N]));
     GridPtr sudoku = grid;
     removeDigits(sudoku, k);
+    bool annotationMode = false;
 
 
     SetTraceLogLevel(LOG_WARNING);
@@ -159,6 +147,7 @@ int main(int argc, char **argv) {
             lifes = 3;
             sudokuGenerator(_sudoku);
             memcpy(grid, _grid, sizeof(int[N][N]));
+            memset(sudokuNotes, 0, sizeof(sudokuNotes));
             removeDigits(sudoku, k);
         }
 
@@ -189,6 +178,7 @@ int main(int argc, char **argv) {
             debugText(TextFormat("%d %d", selector.x, selector.y));
         }
 
+        if (IsKeyPressed(KEY_A)) annotationMode = !annotationMode;
 
         int keyPressed = GetKeyPressed();
         if (keyPressed >= KEY_ONE && keyPressed <= KEY_NINE && selected) {
@@ -197,12 +187,20 @@ int main(int argc, char **argv) {
             int col = selector.x;
 
             if (sudoku[row][col] == 0) {
-                if (_sudoku[row][col] == value) {
-                    sudoku[row][col] = value;
-                } else lifes--;
+                if (!annotationMode) {
+                    if (_sudoku[row][col] == value) {
+
+                        sudoku[row][col] = value;
+
+                        removeNotes(sudokuNotes, col, row, value);
+
+                    } else lifes--;
+                }
+                else {
+                    note_toggle(selector.x, selector.y, value);
+                }
             }
         }
-
 
 
         BeginDrawing();
@@ -221,15 +219,29 @@ int main(int argc, char **argv) {
 
 
         // numbers
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                if (sudoku[i][j] != 0) {
-                    if (selected && sudoku[i][j] == sudoku[selector.y][selector.x]) {
-                        DrawRectangleRec((Rectangle){((float) j + gridRect.x / (float) cellSize) * (float) cellSize, ((float) i + gridRect.y / (float) cellSize) * (float) cellSize, (float) cellSize, (float) cellSize}, selectedColor);
-                        DrawRectangleLinesEx((Rectangle){((float) j + gridRect.x / (float) cellSize) * (float) cellSize, ((float) i + gridRect.y / (float) cellSize) * (float) cellSize, (float) cellSize, (float) cellSize}, 4, selectedLineColor);
+        for (int y = 0; y < 9; y++) {
+            for (int x = 0; x < 9; x++) {
+                if (sudoku[y][x] != 0) {
+                    if (selected && sudoku[y][x] == sudoku[selector.y][selector.x]) {
+                        DrawRectangleRec((Rectangle){((float) x + gridRect.x / (float) cellSize) * (float) cellSize, ((float) y + gridRect.y / (float) cellSize) * (float) cellSize, (float) cellSize, (float) cellSize}, selectedColor);
+                        DrawRectangleLinesEx((Rectangle){((float) x + gridRect.x / (float) cellSize) * (float) cellSize, ((float) y + gridRect.y / (float) cellSize) * (float) cellSize, (float) cellSize, (float) cellSize}, 4, selectedLineColor);
                     }
-                    const Vector2 textPos = {(float)j * (float)cellSize + (float)cellSize/3 + gridRect.x, (float)i * (float)cellSize + (float)cellSize/4 + gridRect.y};
-                    DrawTextEx(font, TextFormat("%d", sudoku[i][j]), textPos, (float) cellSize / 2, 0, numberColor);
+                    const Vector2 textPos = {(float)x * (float)cellSize + (float)cellSize/3 + gridRect.x, (float)y * (float)cellSize + (float)cellSize/4 + gridRect.y};
+                    DrawTextEx(font, TextFormat("%d", sudoku[y][x]), textPos, (float) cellSize / 2, 0, numberColor);
+                }
+                else {
+
+                    // annotation numbers
+                    uint16_t mask = sudokuNotes[y][x];
+                    while (mask) {
+                        int bit = __builtin_ctz(mask);
+                        int n = bit + 1;
+
+                        const Vector2 textPos = {(float)x * (float)cellSize + (float) ((n - 1) % 3 + 1) * (float) cellSize / 5 + gridRect.x, (float)y * (float)cellSize + (float) ((n - 1) / 3 + 1) * (float) cellSize / 5 + gridRect.y};
+                        DrawTextEx(font, TextFormat("%d", n), textPos, (float) cellSize / 4, 0, sudoku[selector.y][selector.x] == n ? numberColor : numberAnnotationColor);
+
+                        mask &= mask - 1;
+                    }
                 }
             }
         }
@@ -248,8 +260,7 @@ int main(int argc, char **argv) {
 
         // lifes
         for (int i = 0; i < 3; i++) DrawTexture(heart, 10 + i * 70, 10, lifes <= i ? GRAY : RED);
-        if (lifes <= 0) DrawText("   PRESS R\nTO RESTART", (screenWidth / 2) - (MeasureText("   PRESS R\nTO RESTART", 60) / 2), screenHeight / 2 - 60, 60, GOLD);
-
+        if (lifes <= 0) DrawTextEx(font, "   PRESS R\nTO RESTART", (Vector2) {  (float) screenWidth / 2 - MeasureTextEx(font, "   PRESS R\nTO RESTART", 60, 0).x / 2 , (float) screenHeight / 2 - 60}, 60, 0, GOLD);
 
         // numbers
         DrawTextEx(font, TextFormat("N = %d", k), (Vector2) {(float) screenWidth - (float) MeasureText(TextFormat("N = %d", k), 60) - 10, 10}, 60, 0, WHITE);
