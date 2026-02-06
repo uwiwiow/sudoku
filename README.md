@@ -43,5 +43,11 @@ Music by Abstraction
 
 
 ### Difficulty
-- **-** → Decrease empty cells  
-- **=** → Increase empty cells  
+
+- **shift + -** → Decrease empty cells
+- **shift + =** → Increase empty cells
+
+### Music
+
+- **-** → Decrease volume
+- **=** → Increase volume

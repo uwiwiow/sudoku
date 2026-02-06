@@ -39,7 +39,8 @@ int main(int argc, char **argv) {
     }
 
     if (argc > 1 && strcmp(argv[1], "--help") == 0) {
-        printf("Usage: sudoku-simple [--version] [--help]\n\nMouse\nLeft Click -> Select a cell\nRight Click -> Clear selection\n\nNavigation\nArrow Keys -> Move selection\nCtrl + Arrows -> Move faster (3 cells)\n\nNumbers\n1 - 9 -> Place number in selected cell\nA -> Toggle annotation mode\n  Normal mode: place a number\n  Annotation mode: place a number as an annotation\n\nGame Actions\nP -> Play / Pause music\nR -> Restart puzzle\nC -> Automatically calculate all notes\nB -> Clear all notes\n\nDifficulty\n- -> Decrease empty cells\n= -> Increase empty cells\n");
+        printf(
+            "Usage: sudoku-simple [--version] [--help]\n\nMouse\nLeft Click -> Select a cell\nRight Click -> Clear selection\n\nNavigation\nArrow Keys -> Move selection\nCtrl + Arrows -> Move faster (3 cells)\n\nNumbers\n1 - 9 -> Place number in selected cell\nA -> Toggle annotation mode\n  Normal mode: place a number\n  Annotation mode: place a number as an annotation\n\nGame Actions\nP -> Play / Pause music\nR -> Restart puzzle\nC -> Automatically calculate all notes\nB -> Clear all notes\n\nDifficulty\nshift + - -> Decrease empty cells\nshift + = -> Increase empty cells\n\nMusic\n- -> Decrease volume\n= -> Increase volume\n");
         return 0;
     }
 
@@ -91,6 +92,7 @@ int main(int argc, char **argv) {
     InitWindow(screenWidth, screenHeight, "Sudoku");
     InitAudioDevice();
     SetTargetFPS(200);
+    SetExitKey(KEY_NULL);
 
 
     Assets_Init();
@@ -101,6 +103,9 @@ int main(int argc, char **argv) {
     PlayMusicStream(music);
     music.looping = true;
     bool musicPlaying = true;
+    float volume = 0.8f;
+    float volumeStep = 0.05f;
+    SetMusicVolume(music, volume);
 
     Image _heart = Assets_LoadImage("heart.png");
     ImageResize(&_heart, 60, 60);
@@ -210,12 +215,23 @@ int main(int argc, char **argv) {
             memset(sudokuNotes, 0, sizeof(sudokuNotes));
         }
 
-
-        if (IsKeyPressed(KEY_MINUS)) k--;
-        if (IsKeyPressed(KEY_EQUAL)) k++;
-
-        if (k < 1) k = 1;
-        if (k > 81) k = 81;
+        const bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) ? true : false;
+        if (IsKeyPressed(KEY_MINUS)) {
+            if (shift) {
+                if (k > 1) k--;
+            } else {
+                volume = volume - volumeStep > 0.0f ? volume - volumeStep : 0.0f;
+                SetMusicVolume(music, volume);
+            }
+        }
+        if (IsKeyPressed(KEY_EQUAL)) {
+            if (shift) {
+                if (k < 80) k++;
+            } else {
+                volume = volume + volumeStep < 1.0f ? volume + volumeStep : 1.0f;
+                SetMusicVolume(music, volume);
+            }
+        }
 
 
         const int step = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ? 3 : 1;
@@ -334,7 +350,7 @@ int main(int argc, char **argv) {
         // help
         if (help) {
             DrawRectangle(0, 0, screenWidth, screenHeight, (Color) {0, 0, 0, 128});
-            DrawTextEx(font, "Mouse\nLeft Click -> Select a cell\nRight Click -> Clear selection\n\nNavigation\nArrow Keys -> Move selection\nCtrl + Arrows -> Move faster (3 cells)\n\nNumbers\n1 - 9 -> Place number in selected cell\nA -> Toggle annotation mode\n  Normal mode: place a number\n  Annotation mode: place a number as an annotation\n\nGame Actions\nP -> Play / Pause music\nR -> Restart puzzle\nC -> Automatically calculate all notes\nB -> Clear all notes\n\nDifficulty\n- -> Decrease empty cells\n= -> Increase empty cells", (Vector2) {10, 10}, 32, 0, WHITE);
+            DrawTextEx(font, "Mouse\nLeft Click -> Select a cell\nRight Click -> Clear selection\n\nNavigation\nArrow Keys -> Move selection\nCtrl + Arrows -> Move faster (3 cells)\n\nNumbers\n1 - 9 -> Place number in selected cell\nA -> Toggle annotation mode\n  Normal mode: place a number\n  Annotation mode: place a number as an annotation\n\nGame Actions\nP -> Play / Pause music\nR -> Restart puzzle\nC -> Automatically calculate all notes\nB -> Clear all notes\n\nDifficulty\nshift + - -> Decrease empty cells\nshift + = -> Increase empty cells\n\nMusic\n- -> Decrease volume\n= -> Increase volume", (Vector2) {10, 10}, 26, 0, WHITE);
         }
         DrawTextureV(helpTexture, (Vector2) {helpRect.x, helpRect.y}, WHITE);
 
