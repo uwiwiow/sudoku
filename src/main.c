@@ -1,25 +1,28 @@
 #include <raylib.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
 #include "generator.h"
-
 #include "debug.h"
+#include "annotations.h"
+#include "assets.h"
+
+// debug
 char *buffer = nullptr;
 int bufferIndex = 0;
 
-#include "annotations.h"
-#include <stdint.h>
+// annotations
 uint16_t sudokuNotes[9][9];
 
 typedef struct Vector2i {
-    int x;                // Vector x component
-    int y;                // Vector y component
+    int x;
+    int y;
 } Vector2i;
 
 
-void updateSelectedRec(Rectangle *vSelectedArea, Rectangle *hSelectedArea, Rectangle *boxSelectedArea, Vector2i selector, int cellSize, Rectangle gridRect) {
+void UpdateSelectedRec(Rectangle *vSelectedArea, Rectangle *hSelectedArea, Rectangle *boxSelectedArea, Vector2i selector, int cellSize, Rectangle gridRect) {
     vSelectedArea->x = (float) (selector.x * cellSize + (int) gridRect.x);
     vSelectedArea->y = gridRect.y;
     hSelectedArea->y = (float) (selector.y * cellSize + (int) gridRect.y);
@@ -29,6 +32,17 @@ void updateSelectedRec(Rectangle *vSelectedArea, Rectangle *hSelectedArea, Recta
 }
 
 int main(int argc, char **argv) {
+
+    if (argc > 1 && strcmp(argv[1], "--version") == 0) {
+        printf("Sudoku %s\n", SUDOKU_VERSION);
+        return 0;
+    }
+
+    if (argc > 1 && strcmp(argv[1], "--help") == 0) {
+        printf("Usage: sudoku-simple [--version] [--help]\n\nMouse\nLeft Click -> Select a cell\nRight Click -> Clear selection\n\nNavigation\nArrow Keys -> Move selection\nCtrl + Arrows -> Move faster (3 cells)\n\nNumbers\n1 - 9 -> Place number in selected cell\nA -> Toggle annotation mode\n  Normal mode: place a number\n  Annotation mode: place a number as an annotation\n\nGame Actions\nP -> Play / Pause music\nR -> Restart puzzle\nC -> Automatically calculate all notes\nB -> Clear all notes\n\nDifficulty\n- -> Decrease empty cells\n= -> Increase empty cells\n");
+        return 0;
+    }
+
 
     buffer = (char *) malloc(MAX_BUFFER * sizeof(char));
     if (!buffer) {
@@ -49,10 +63,10 @@ int main(int argc, char **argv) {
     const Color selectedLineColor = {42, 91, 176, 255};
     const Color selectedColor = {28, 57, 107, 255};
     const Color selectedAreaColor = {71, 71, 71, 255};
-    const auto boxColor = GRAY;
-    const auto lineColor = DARKGRAY;
-    const auto numberColor = GRAY;
     const Color numberAnnotationColor = { 100, 100, 100, 255 };
+    auto const boxColor = GRAY;
+    auto const lineColor = DARKGRAY;
+    auto const numberColor = GRAY;
 
     Rectangle hSelectedArea = {gridRect.x, gridRect.y, gridRect.width, (float) cellSize};
     Rectangle vSelectedArea = {gridRect.x, gridRect.y, (float) cellSize, gridRect.height};
@@ -79,24 +93,24 @@ int main(int argc, char **argv) {
     SetTargetFPS(200);
 
 
-    const Font font = LoadFont("assets/lexend-latin-600-normal.ttf");
+    Assets_Init();
 
+    const Font font = Assets_LoadFont("lexend-latin-600-normal.ttf");
 
-    Music music = LoadMusicStream("assets/Troubadeck 12 Good King.ogg");
+    Music music = Assets_LoadMusic("Troubadeck 12 Good King.ogg");
     PlayMusicStream(music);
     music.looping = true;
     bool musicPlaying = true;
 
-
-    Image _heart = LoadImage("assets/heart.png");
+    Image _heart = Assets_LoadImage("heart.png");
     ImageResize(&_heart, 60, 60);
     const Texture2D heart = LoadTextureFromImage(_heart);
     UnloadImage(_heart);
     int lifes = 3;
 
-    const Texture2D pen = LoadTexture("assets/pen.png");
+    const Texture2D pen = Assets_LoadTexture("pen.png");
 
-    Image _help = LoadImage("assets/help.png");
+    Image _help = Assets_LoadImage("help.png");
     ImageResize(&_help, 60, 60);
     const Texture2D helpTexture = LoadTextureFromImage(_help);
     UnloadImage(_help);
@@ -131,7 +145,7 @@ int main(int argc, char **argv) {
             boxSelectedArea.width = (float) cellSize * 3;
             boxSelectedArea.height = (float) cellSize * 3;
 
-            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
+            UpdateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
         }
 
         if (IsKeyPressed(KEY_P)) {
@@ -147,7 +161,7 @@ int main(int argc, char **argv) {
                 selector.x = (int) (mousePos.x - gridRect.x) / ( cellSize);
                 selector.y = (int) (mousePos.y - gridRect.y) / ( cellSize);
 
-                updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
+                UpdateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
 
                 debugText(TextFormat("%d %d", selector.x, selector.y));
             }
@@ -207,22 +221,22 @@ int main(int argc, char **argv) {
         const int step = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ? 3 : 1;
         if (IsKeyPressed(KEY_UP)) {
             if (selector.y > -1 + step) selector.y -= step;
-            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
+            UpdateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
             debugText(TextFormat("%d %d", selector.x, selector.y));
         }
         if (IsKeyPressed(KEY_DOWN)) {
             if (selector.y < 9 - step)  selector.y += step;
-            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
+            UpdateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
             debugText(TextFormat("%d %d", selector.x, selector.y));
         }
         if (IsKeyPressed(KEY_LEFT)) {
             if (selector.x > -1 + step) selector.x -= step;
-            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
+            UpdateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
             debugText(TextFormat("%d %d", selector.x, selector.y));
         }
         if (IsKeyPressed(KEY_RIGHT)) {
             if (selector.x < 9 - step)  selector.x += step;
-            updateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
+            UpdateSelectedRec(&vSelectedArea, &hSelectedArea, &boxSelectedArea, selector, cellSize, gridRect);
             debugText(TextFormat("%d %d", selector.x, selector.y));
         }
 
